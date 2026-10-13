@@ -34,3 +34,6 @@ idea/
 
 # Claude
 .claude/
+
+#ideas
+ideas/

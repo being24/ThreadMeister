@@ -27,7 +27,9 @@ if exist "%ZIPFILE%" (
 )
 
 :: Use PowerShell to create the zip with correct folder structure
-:: All files go into a ThreadMeister\ root folder inside the zip
+:: All files go into a ThreadMeister\ root folder inside the zip.
+:: Entry paths use '/' (zip standard); Compress-Archive in PowerShell 5.1 writes '\',
+:: which macOS unzips as flat files named "ThreadMeister\core\..."
 powershell -NoProfile -Command ^
   "$root = '%ROOT%';" ^
   "$zip = '%ZIPFILE%';" ^
@@ -54,9 +56,14 @@ powershell -NoProfile -Command ^
   "Copy-Item (Join-Path $root 'resources\icons\*') (Join-Path $pkg 'resources\icons');" ^
   "Copy-Item (Join-Path $root 'resources\help.html') (Join-Path $pkg 'resources');" ^
   "Copy-Item (Join-Path $root 'ThreadMeister.png') $pkg;" ^
-  "Compress-Archive -Path $pkg -DestinationPath $zip -Force;" ^
+  "Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem;" ^
+  "$za = [System.IO.Compression.ZipFile]::Open($zip, 'Create');" ^
+  "Get-ChildItem $pkg -Recurse -File | ForEach-Object {" ^
+  "  $name = 'ThreadMeister/' + $_.FullName.Substring($pkg.Length + 1).Replace('\', '/');" ^
+  "  [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($za, $_.FullName, $name) };" ^
+  "$za.Dispose();" ^
   "Remove-Item $tmp -Recurse -Force;" ^
-  "Write-Host '  Created  $zip'"
+  "Write-Host ('  Created  ' + $zip)"
 
 echo.
 echo Done. Zip is ready at:
